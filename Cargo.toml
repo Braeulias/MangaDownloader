@@ -1,0 +1,15 @@
+[package]
+name = "MangaDownload"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+inquire = "0.7.5"
+serde_json = "1.0.133"
+futures = "0.3.31"
+image = "0.25.5"
+lopdf = { version = "0.34.0", features = ["embed_image"] }
+directories = "5.0.1"
+indicatif = "0.17.9"
