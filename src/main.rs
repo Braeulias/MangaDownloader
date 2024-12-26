@@ -304,41 +304,75 @@ async fn fetch_all_chapters(
     base_url: &str,
     client: &reqwest::Client,
 ) -> Vec<Chapter> {
-    let url = format!("{}/manga/{}/feed", base_url, manga_id);
-    let response = client
-        .get(&url)
-        .query(&[("translatedLanguage[]", "en")])
-        .send()
-        .await
-        .expect("Failed to fetch chapters.");
+    let mut chapters = Vec::new();
+    let mut offset = 0;
+    let limit = 100;
 
-    if response.status().is_success() {
-        let data: Value = response.json().await.unwrap();
-        let chapters: Vec<Chapter> = data["data"]
-            .as_array()
-            .unwrap_or(&vec![])
-            .iter()
-            .map(|ch| Chapter {
-                id: ch["id"].as_str().unwrap().to_string(),
-                number: ch["attributes"]["chapter"]
-                    .as_str()
-                    .unwrap_or("N/A")
-                    .to_string(),
-                name: ch["attributes"]["title"].as_str().unwrap_or("").to_string(),
-            })
-            .collect();
+    loop {
+        let url = format!("{}/manga/{}/feed", base_url, manga_id);
+        let response = client
+            .get(&url)
+            .query(&[
+                ("translatedLanguage[]", "en"),
+                ("includeFuturePublishAt", "0"),
+                ("limit", &limit.to_string()),
+                ("offset", &offset.to_string()),
+                ("order[chapter]", "asc"),
+            ])
+            .send()
+            .await;
 
-        if chapters.is_empty() {
-            println!("No English chapters found for this manga.");
-            std::process::exit(1);
+        match response {
+            Ok(response) if response.status().is_success() => {
+                let data: Value = response.json().await.unwrap();
+
+                let fetched_chapters: Vec<Chapter> = data["data"]
+                    .as_array()
+                    .unwrap_or(&vec![])
+                    .iter()
+                    .map(|ch| Chapter {
+                        id: ch["id"].as_str().unwrap().to_string(),
+                        number: ch["attributes"]["chapter"]
+                            .as_str()
+                            .unwrap_or("N/A")
+                            .to_string(),
+                        name: ch["attributes"]["title"].as_str().unwrap_or("").to_string(),
+                    })
+                    .collect();
+
+                if fetched_chapters.is_empty() {
+                    break; // Stop if no more chapters are found
+                }
+
+                chapters.extend(fetched_chapters);
+
+
+                offset += limit;
+            }
+            Ok(response) => {
+                println!(
+                    "Error fetching chapters: {}",
+                    response.text().await.unwrap_or_default()
+                );
+                break;
+            }
+            Err(e) => {
+                println!("Network error fetching chapters: {}", e);
+                break;
+            }
         }
+    }
 
-        chapters
-    } else {
-        println!("Error fetching chapters.");
+    if chapters.is_empty() {
+        println!("No English chapters found for this manga.");
         std::process::exit(1);
     }
+
+    chapters
 }
+
+
+
 
 async fn fetch_manga_by_title(base_url: &str, title: &str, client: &reqwest::Client) -> Vec<Manga> {
     let url = format!("{}/manga", base_url);
