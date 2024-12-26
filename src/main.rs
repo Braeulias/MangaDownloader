@@ -96,7 +96,7 @@ async fn download_chapters_to_pdf(
                         .progress_chars("=>-"),
                 );
 
-                let pdf_path = manga_dir.join(format!("Chapter_{}.pdf", chapter.number));
+                let pdf_path = manga_dir.join(format!("Chapter_{}_{}.pdf", chapter.number, chapter.name));
                 pb.set_message(format!("Chapter {}", chapter.number));
 
                 let images = fetch_chapter_images_parallel(&chapter.id, &client).await;
